@@ -1,6 +1,6 @@
 # prompto
 
-A modern, TypeScript-powered CLI for browsing and rendering LangSmith prompts. Prompto wraps the LangSmith Hub APIs with a fast Commander-based interface, colorful output, and helpers for injecting dynamic variables into your prompts.
+A modern, TypeScript-powered CLI for browsing and managing LangSmith prompts. Prompto wraps the LangSmith Hub APIs with a fast Commander-based interface, colorful output, and helpers for rendering, creating, updating, and deleting prompts without leaving your terminal.
 
 ## Requirements
 
@@ -42,10 +42,11 @@ Render a prompt with variables:
 bun run cli -- show org/welcome --var name=Taylor --var locale=en
 ```
 
-Export the rendered prompt as JSON for downstream tooling:
+Export the rendered prompt as JSON or persist it to disk:
 
 ```bash
 bun run cli -- show org/welcome --json
+bun run cli -- show org/welcome --save prompt.mustache
 ```
 
 Provide an explicit API key (overrides `LANGSMITH_API_KEY`):
@@ -54,20 +55,43 @@ Provide an explicit API key (overrides `LANGSMITH_API_KEY`):
 bun run cli -- list --api-key sk-live-123
 ```
 
+Create a new prompt (template can come from a flag or file):
+
+```bash
+bun run cli -- create org/onboarding \
+  --template-file templates/onboarding.mustache \
+  --variables '["name","product"]' \
+  --tags '["beta","sales"]' \
+  --description "Welcome message" \
+  --public
+```
+
+Update only the metadata or variables for an existing prompt:
+
+```bash
+bun run cli -- update org/onboarding --variables '["name","product","locale"]' --private
+```
+
+Delete a prompt after confirming it exists:
+
+```bash
+bun run cli -- delete org/onboarding
+```
+
 ## Development
 
 Available scripts:
 
 - `bun run lint` – ESLint with TypeScript support
 - `bun run format` – Format the project with Prettier
-- `bun run test` – Execute the Vitest suite (non-destructive retrieval coverage)
+- `bun run test` – Execute the Vitest suite (manager + CLI coverage with mocked LangSmith API calls)
 - `bun run test:watch` – Watch mode for tests
 
 A Husky pre-commit hook automatically formats, lints, and tests the codebase to keep commits clean.
 
 ## Testing Notes
 
-The automated test suite exercises prompt retrieval flows only. Creation, update, and deletion operations are intentionally untested to avoid mutating remote state.
+Tests rely on mocked LangSmith Hub interactions to avoid mutating remote state. The harness exercises prompt listing, rendering, create/update/delete flows, and CLI option parsing (including file-system writes).
 
 ## Releasing
 

@@ -8,11 +8,24 @@ vi.mock("langchain/hub/node", () => ({
 }));
 
 const { PromptManager } = await import("../src/manager.ts");
-const { pull } = await import("langchain/hub/node");
+const { pull, push } = await import("langchain/hub/node");
 
 const pullMock = vi.mocked(pull);
+const pushMock = vi.mocked(push);
 
-const createPrompt = (overrides: Partial<Prompt>): Prompt => ({
+type MockSerializedPrompt = {
+    template?: string;
+    template_format?: string;
+    input_variables?: string[];
+};
+
+type MockPulledPrompt = {
+    serialize: () => MockSerializedPrompt;
+    templateFormat?: string;
+    inputVariables?: string[];
+};
+
+const buildPrompt = (overrides: Partial<Prompt>): Prompt => ({
     repo_handle: "org/prompt",
     id: overrides.id ?? "prompt-id",
     tenant_id: "tenant",
@@ -49,28 +62,33 @@ describe("PromptManager", () => {
     let listPromptsMock: ReturnType<typeof vi.fn<PromptServiceClient["listPrompts"]>>;
     let promptExistsMock: ReturnType<typeof vi.fn<PromptServiceClient["promptExists"]>>;
     let deletePromptMock: ReturnType<typeof vi.fn<PromptServiceClient["deletePrompt"]>>;
+    let getPromptMock: ReturnType<typeof vi.fn<PromptServiceClient["getPrompt"]>>;
 
     beforeEach(() => {
         listPromptsMock = vi.fn<PromptServiceClient["listPrompts"]>();
         promptExistsMock = vi.fn<PromptServiceClient["promptExists"]>();
         deletePromptMock = vi.fn<PromptServiceClient["deletePrompt"]>();
+        getPromptMock = vi.fn<PromptServiceClient["getPrompt"]>();
 
         client = {
             listPrompts: listPromptsMock,
             promptExists: promptExistsMock,
-            deletePrompt: deletePromptMock
+            deletePrompt: deletePromptMock,
+            getPrompt: getPromptMock
         };
         vi.clearAllMocks();
+        pushMock.mockReset();
+        pullMock.mockReset();
     });
 
     it("returns prompts sorted by updated date", async () => {
         const prompts = [
-            createPrompt({
+            buildPrompt({
                 id: "first",
                 full_name: "org/first",
                 updated_at: "2024-01-01T00:00:00.000Z"
             }),
-            createPrompt({
+            buildPrompt({
                 id: "second",
                 full_name: "org/second",
                 updated_at: "2024-02-01T00:00:00.000Z"
@@ -115,5 +133,95 @@ describe("PromptManager", () => {
 
         expect(result).toBeNull();
         expect(pullMock).not.toHaveBeenCalled();
+    });
+
+    it("creates a prompt with metadata", async () => {
+        const manager = new PromptManager("test", client);
+
+        await manager.createPrompt("org/new", {
+            template: "Hi {{name}}",
+            templateFormat: "mustache",
+            templateVariables: ["name"],
+            tags: ["beta"],
+            description: "Greeting",
+            readme: "# Hello",
+            isPublic: true
+        });
+
+        expect(pushMock).toHaveBeenCalledWith(
+            "org/new",
+            expect.objectContaining({ templateFormat: "mustache", inputVariables: ["name"] }),
+            expect.objectContaining({
+                apiKey: "test",
+                tags: ["beta"],
+                description: "Greeting",
+                readme: "# Hello",
+                isPublic: true
+            })
+        );
+    });
+
+    it("updates only provided fields and preserves existing data", async () => {
+        promptExistsMock.mockResolvedValue(true);
+        const serialize = vi.fn<MockPulledPrompt["serialize"]>().mockReturnValue({
+            template: "Hello {{name}}",
+            template_format: "mustache",
+            input_variables: ["name"]
+        });
+        pullMock.mockResolvedValue({
+            serialize,
+            templateFormat: "mustache",
+            inputVariables: ["name"]
+        } as unknown as MockPulledPrompt);
+        getPromptMock.mockResolvedValue(
+            buildPrompt({
+                tags: ["original"],
+                description: "Original",
+                readme: "# Readme",
+                is_public: false
+            })
+        );
+
+        const manager = new PromptManager("test", client);
+        await manager.updatePrompt("org/prompt", {
+            templateVariables: ["name", "role"],
+            tags: ["updated"],
+            isPublic: true
+        });
+
+        expect(pushMock).toHaveBeenCalledWith(
+            "org/prompt",
+            expect.objectContaining({ inputVariables: ["name", "role"] }),
+            expect.objectContaining({
+                tags: ["updated"],
+                description: "Original",
+                readme: "# Readme",
+                isPublic: true
+            })
+        );
+    });
+
+    it("throws when updating a missing prompt", async () => {
+        promptExistsMock.mockResolvedValue(false);
+
+        const manager = new PromptManager("test", client);
+        await expect(manager.updatePrompt("missing/prompt", {})).rejects.toThrow(/does not exist/i);
+    });
+
+    it("checks existence before deleting", async () => {
+        promptExistsMock.mockResolvedValue(true);
+
+        const manager = new PromptManager("test", client);
+        await manager.deletePrompt("org/prompt");
+
+        expect(promptExistsMock).toHaveBeenCalledWith("org/prompt");
+        expect(deletePromptMock).toHaveBeenCalledWith("org/prompt");
+    });
+
+    it("throws when deleting a missing prompt", async () => {
+        promptExistsMock.mockResolvedValue(false);
+
+        const manager = new PromptManager("test", client);
+        await expect(manager.deletePrompt("missing/prompt")).rejects.toThrow(/does not exist/i);
     });
 });

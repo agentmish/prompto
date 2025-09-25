@@ -10,14 +10,15 @@ This repository is agent-friendly. Follow these guardrails when operating as an 
 
 ## Safe Execution Patterns
 
-- Prefer read-only interactions (`list`, `show`). Creation, update, and deletion commands are intentionally absent.
+- Use read-only interactions (`list`, `show`) unless you explicitly need to mutate prompts.
+- Mutation commands (`create`, `update`, `delete`) accept JSON payloads; double-check the target prompt and payloads before executing them.
 - When running the CLI inside scripted workflows, call `bun run cli -- <command>` so flags are forwarded correctly.
-- Capture JSON output with `--json` if you need machine-readable data.
+- Capture JSON output with `--json` if you need machine-readable data, or `--save <file>` to persist rendered prompts.
 
 ## Quality Gates
 
 - Run `bun run format`, `bun run lint`, and `bun run test` before opening pull requests. These commands also run automatically via Husky on each commit.
-- Tests only cover retrieval flows; do not assume destructive operations are safe.
+- Tests mock LangSmith network calls but cover create/update/delete flows; still avoid running against production tenants without review.
 
 ## Troubleshooting
 
