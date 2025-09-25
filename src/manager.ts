@@ -3,21 +3,35 @@ import { pull, push } from "langchain/hub/node";
 import { PromptTemplate } from "@langchain/core/prompts";
 import type { Prompt } from "langsmith/schemas";
 
+export type PromptServiceClient = Pick<
+    Client,
+    "listPrompts" | "promptExists" | "deletePrompt"
+>;
+
 export class PromptManager {
-    client: Client;
+    client: PromptServiceClient;
     apiKey: string;
 
-    constructor(apiKey: string) {
-        this.client = new Client({ apiKey });
+    constructor(apiKey: string, client?: PromptServiceClient) {
         this.apiKey = apiKey;
+        this.client = client ?? new Client({ apiKey });
     }
 
     async listPrompts(query?: string): Promise<Array<Prompt>> {
-        const prompts = await Array.fromAsync(this.client.listPrompts({ isPublic: false, isArchived: false, query })) ?? [];
-        return prompts;
+        const prompts =
+            (await Array.fromAsync(
+                this.client.listPrompts({ isPublic: false, isArchived: false, query })
+            )) ?? [];
+
+        return prompts.sort(
+            (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+        );
     }
 
-    async getPrompt(promptId: string, promptVariables?: Record<string,unknown>): Promise<string | null> {
+    async getPrompt(
+        promptId: string,
+        promptVariables: Record<string, unknown> = {}
+    ): Promise<string | null> {
         const exists = await this.client.promptExists(promptId);
         if (!exists) return null;
         const promptTemplate = await pull(promptId, {
@@ -28,17 +42,27 @@ export class PromptManager {
         return prompt ? prompt.value : null;
     }
 
-    async createOrUpdatePrompt(promptId: string, newPrompt: string, templateFormat: "mustache" | "f-string" = "mustache", templateVariables: Array<Extract<string,string>> = [], description?: string): Promise<string> {
-        return await push(promptId, new PromptTemplate({
-            template: newPrompt,
-            templateFormat: templateFormat,
-            inputVariables: templateVariables
-        }), {
-            apiKey: this.apiKey,
-            isPublic: false,
-            description,
-            tags: ["latest"]
-        });
+    async createOrUpdatePrompt(
+        promptId: string,
+        newPrompt: string,
+        templateFormat: "mustache" | "f-string" = "mustache",
+        templateVariables: Array<Extract<string, string>> = [],
+        description?: string
+    ): Promise<string> {
+        return await push(
+            promptId,
+            new PromptTemplate({
+                template: newPrompt,
+                templateFormat: templateFormat,
+                inputVariables: templateVariables
+            }),
+            {
+                apiKey: this.apiKey,
+                isPublic: false,
+                description,
+                tags: ["latest"]
+            }
+        );
     }
 
     async deletePrompt(promptId: string): Promise<boolean> {
