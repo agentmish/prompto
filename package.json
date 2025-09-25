@@ -1,0 +1,17 @@
+{
+  "name": "prompto",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@langchain/core": "^0.3.77",
+    "langchain": "^0.3.34",
+    "langsmith": "^0.3.69"
+  }
+}
