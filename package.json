@@ -1,19 +1,26 @@
 {
-    "name": "prompto",
+    "name": "prompto-mcp",
+    "version": "1.0.0",
+    "description": "LangSmith Prompt Manager as an MCP server for xmcp.dev",
+    "main": "src/mcp-server.ts",
     "module": "./src/index.ts",
     "type": "module",
     "private": true,
     "scripts": {
-        "cli": "bun src/index.ts",
-        "compile": "bun build --compile src/index.ts --outfile dist/prompto",
-        "build": "bun build src/index.ts --target node --outfile dist/index.js",
+        "cli": "node src/index.ts",
+        "compile": "tsc src/index.ts --outDir dist",
+        "build": "tsc src/mcp-server.ts --target es2020 --module esnext --outDir dist",
+        "build:server": "tsc -p tsconfig.server.json",
+        "start": "node dist-server/src/mcp-server.js",
+        "dev": "node --loader ts-node/esm src/mcp-server.ts",
         "lint": "eslint . --ext .ts",
         "lint:fix": "eslint . --ext .ts --fix",
         "format": "prettier --write .",
         "format:check": "prettier --check .",
         "test": "vitest run",
         "test:watch": "vitest --watch",
-        "prepare": "husky"
+        "prepare": "husky",
+        "vercel-build": "echo 'Building for Vercel...' && npm run build:server"
     },
     "devDependencies": {
         "@types/bun": "latest",
@@ -24,6 +31,8 @@
         "eslint-config-prettier": "^10.1.8",
         "husky": "^9.1.7",
         "prettier": "^3.6.2",
+        "ts-node": "^10.9.2",
+        "typescript": "^5.7.2",
         "typescript-eslint": "^8.44.1",
         "vitest": "^3.2.4"
     },

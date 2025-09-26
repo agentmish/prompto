@@ -1,0 +1,38 @@
+# LangSmith Prompt Manager MCP Server
+# This server provides access to LangSmith prompts through the Model Context Protocol
+
+[server]
+name = "prompto-mcp"
+description = "Browse and render LangSmith prompts from the command line through MCP"
+url = "https://your-domain.vercel.app/mcp"
+method = "POST"
+
+[tools.list_prompts]
+description = "List private prompts available in LangSmith"
+parameters = { "type": "object", "properties": { "query": { "type": "string", "description": "Filter prompts by repository or owner handle" } } }
+
+[tools.get_prompt]
+description = "Render a prompt locally, with optional variables"
+parameters = { "type": "object", "properties": { "promptId": { "type": "string", "description": "Prompt identifier (e.g. org/prompt-name)" }, "variables": { "type": "object", "description": "Optional prompt variables as key=value pairs", "additionalProperties": { "type": "string" } } }, "required": ["promptId"] }
+
+[tools.create_prompt]
+description = "Create a new LangSmith prompt"
+parameters = { "type": "object", "properties": { "promptId": { "type": "string", "description": "Prompt identifier (e.g. org/prompt-name)" }, "template": { "type": "string", "description": "Prompt template content" }, "templateFormat": { "type": "string", "enum": ["mustache", "f-string"], "default": "mustache", "description": "Template format" }, "templateVariables": { "type": "array", "items": { "type": "string" }, "description": "Template variables" }, "description": { "type": "string", "description": "Prompt description" }, "tags": { "type": "array", "items": { "type": "string" }, "description": "Metadata tags" }, "readme": { "type": "string", "description": "Prompt README content" }, "isPublic": { "type": "boolean", "description": "Make the prompt public" } }, "required": ["promptId", "template"] }
+
+[tools.update_prompt]
+description = "Update an existing prompt with new content or metadata"
+parameters = { "type": "object", "properties": { "promptId": { "type": "string", "description": "Prompt identifier to update" }, "template": { "type": "string", "description": "Prompt template content" }, "templateFormat": { "type": "string", "enum": ["mustache", "f-string"], "description": "Template format" }, "templateVariables": { "type": "array", "items": { "type": "string" }, "description": "Template variables" }, "description": { "type": "string", "description": "Prompt description" }, "tags": { "type": "array", "items": { "type": "string" }, "description": "Metadata tags" }, "readme": { "type": "string", "description": "Prompt README content" }, "isPublic": { "type": "boolean", "description": "Mark the prompt as public or private" } }, "required": ["promptId"] }
+
+[tools.delete_prompt]
+description = "Delete a prompt after confirming it exists"
+parameters = { "type": "object", "properties": { "promptId": { "type": "string", "description": "Prompt identifier to delete" } }, "required": ["promptId"] }
+
+[environment]
+LANGSMITH_API_KEY = "your-langsmith-api-key-here"
+
+[examples]
+list_prompts = "List all available prompts"
+get_prompt = "Get and render a specific prompt with variables"
+create_prompt = "Create a new prompt with template and metadata"
+update_prompt = "Update an existing prompt's content or settings"
+delete_prompt = "Delete a prompt by its identifier"
