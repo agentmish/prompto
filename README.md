@@ -93,6 +93,79 @@ A Husky pre-commit hook automatically formats, lints, and tests the codebase to 
 
 Tests rely on mocked LangSmith Hub interactions to avoid mutating remote state. The harness exercises prompt listing, rendering, create/update/delete flows, and CLI option parsing (including file-system writes).
 
+## MCP Server (Remote via Streamable HTTP)
+
+Prompto exposes its functionality as an MCP server (Model Context Protocol) using the Streamable HTTP transport and a Vercel Function entrypoint.
+
+### Endpoints
+
+When deployed, the MCP endpoint will live at:
+
+- POST /api/mcp – Streamable HTTP request channel
+- GET  /api/mcp/mcp – (used internally by some clients for SSE streaming; handled by the adapter)
+
+### Auth
+
+- Preferred: send Authorization: Bearer <LANGSMITH_API_KEY>.
+- Or pass apiKey in tool params.
+- Or set LANGSMITH_API_KEY in the environment.
+
+### Available tools
+
+- prompts_list – List private prompts (args: query?, apiKey?).
+- prompt_show – Render a prompt (args: promptId, variables?, asJson?, apiKey?).
+- prompt_create – Create a prompt (args: promptId, template, format?, variables?, tags?, description?, readme?, isPublic?, apiKey?).
+- prompt_update – Update a prompt (args: promptId, optional fields mirroring create, plus apiKey?).
+- prompt_delete – Delete a prompt (args: promptId, apiKey?).
+
+### Local dev (optional)
+
+You can invoke the handler locally with vc dev (Vercel CLI) or any Web runtime invoking api/[transport].ts as a Web handler (GET/POST).
+
+### Deploy to Vercel
+
+1. Ensure dependencies are installed:
+
+   ```bash
+   bun add mcp-handler @modelcontextprotocol/sdk zod
+   ```
+
+2. Set LANGSMITH_API_KEY in Vercel Project → Settings → Environment Variables.
+3. Connect this repo to Vercel or run:
+
+   ```bash
+   vc deploy
+   ```
+
+#### Client examples
+
+- Claude Desktop (via mcp-remote, if needed):
+
+  ```json
+  {
+    "mcpServers": {
+      "prompto": {
+        "command": "npx",
+        "args": ["-y", "mcp-remote", "https://<your-deployment>/api/mcp"]
+      }
+    }
+  }
+  ```
+
+- Cursor (direct Streamable HTTP where supported):
+
+  ```json
+  {
+    "mcpServers": {
+      "prompto": {
+        "url": "https://<your-deployment>/api/mcp"
+      }
+    }
+  }
+  ```
+
+> Implementation based on the MCP Streamable HTTP transport and Vercel's MCP adapter handler. See sources at the end of this message.
+
 ## Releasing
 
 This project targets direct execution with Bun (`bun run cli`). If you need an installable `prompto` binary, bundle the CLI to JavaScript (e.g. with `tsup`) and expose it via the `bin` field in `package.json`.
