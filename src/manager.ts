@@ -91,7 +91,9 @@ export class PromptManager {
             throw new Error(`Failed to load prompt "${promptId}".`);
         }
 
-        const serialized = promptTemplate.serialize();
+        // Cast to PromptTemplate to access specific properties
+        const promptTemplateInstance = promptTemplate as PromptTemplate;
+        const serialized = promptTemplateInstance.serialize();
         const existingTemplate = serialized.template;
         if (existingTemplate && typeof existingTemplate !== "string") {
             throw new Error("Updating prompts with non-string templates is not supported.");
@@ -107,12 +109,12 @@ export class PromptManager {
         const templateFormat =
             updates.templateFormat ??
             (serialized.template_format as TemplateFormat | undefined) ??
-            (promptTemplate.templateFormat as TemplateFormat | undefined) ??
+            (promptTemplateInstance.templateFormat as TemplateFormat | undefined) ??
             "mustache";
         const templateVariables =
             updates.templateVariables ??
             serialized.input_variables ??
-            (promptTemplate.inputVariables as string[] | undefined) ??
+            (promptTemplateInstance.inputVariables as string[] | undefined) ??
             [];
 
         const prompt = new PromptTemplate({
